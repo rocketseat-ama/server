@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:latest
+    restart: unless-stopped
+    ports:
+      - ${WSRS_DATABASE_PORT:-5432}:5432
+    environment:
+      POSTGRES_USER: ${WSRS_DATABASE_USER}
+      POSTGRES_PASSWORD: ${WSRS_DATABASE_PASSWORD}
+      POSTGRES_DB: ${WSRS_DATABASE_NAME}
+    volumes:
+      - wsrs-db-data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    ports:
+      - ${WSRS_PGADMIN_PORT:-5050}:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${WSRS_PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${WSRS_PGADMIN_PASSWORD}
+    volumes:
+      - wsrs-pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+volumes:
+  wsrs-db-data:
+    driver: local
+  wsrs-pgadmin-data:
+    driver: local
