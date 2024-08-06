@@ -1,3 +1,5 @@
+name: rocketseat-ama
+
 services:
   db:
     image: postgres:latest
