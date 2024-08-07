@@ -220,7 +220,7 @@ func (h apiHandler) handleGetRoomMessages(w http.ResponseWriter, r *http.Request
 func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request) {}
 func (h apiHandler) handleReactionToMessage(w http.ResponseWriter, r *http.Request) {}
 func (h apiHandler) handleRemoveReactionFromMessage(w http.ResponseWriter, r *http.Request) {}
-func (h apiHandler) handleMarkMessageAsAsnwered(w http.ResponseWriter, r *http.Request) {}
+func (h apiHandler) handleMarkMessageAsAnswered(w http.ResponseWriter, r *http.Request) {}
 
 func NewHandler(q *pgstore.Queries) http.Handler {
 	a := apiHandler{
@@ -259,7 +259,7 @@ func NewHandler(q *pgstore.Queries) http.Handler {
 					r.Get("/", a.handleGetRoomMessage)
 					r.Patch("/react", a.handleReactionToMessage)
 					r.Delete("/react", a.handleRemoveReactionFromMessage)
-					r.Patch("/answer", a.handleMarkMessageAsAsnwered)
+					r.Patch("/answer", a.handleMarkMessageAsAnswered)
 				})
 			})
 		})
