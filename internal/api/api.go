@@ -261,7 +261,11 @@ func (h apiHandler) handleGetRoomMessages(w http.ResponseWriter, r *http.Request
 			return
 		}
 		
-		messages = []pgstore.Message{}
+		messages = make([]pgstore.Message, 0)
+	}
+
+	if len(messages) == 0 {
+		messages = make([]pgstore.Message, 0)
 	}
 
 	type response struct {
@@ -324,7 +328,7 @@ func (h apiHandler) handleReactionToMessage(w http.ResponseWriter, r *http.Reque
 	}
 
 	type response struct {
-		ReactionCount int64 `json:"reactionCount"`
+		ReactionCount int64 `json:"reaction_count"`
 	}
 
 	h.sendResponse(w, response{ReactionCount: reactionCount})
@@ -357,7 +361,7 @@ func (h apiHandler) handleRemoveReactionFromMessage(w http.ResponseWriter, r *ht
 	}
 
 	type response struct {
-		ReactionCount int64 `json:"reactionCount"`
+		ReactionCount int64 `json:"reaction_count"`
 	}
 
 	h.sendResponse(w, response{ReactionCount: reactionCount})
