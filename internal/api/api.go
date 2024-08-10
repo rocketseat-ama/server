@@ -65,7 +65,7 @@ func (h apiHandler) getUUIDParam (r *http.Request, param string ) (uuid.UUID, er
 	return value, nil
 }
 
-func (h apiHandler) sendResponse (w http.ResponseWriter, data interface{}) {
+func (h apiHandler) sendResponse (w http.ResponseWriter, data any) {
 	payload, err := json.Marshal(data)
 	if err != nil {
 		slog.Error("failed to marshal response", "error", err)
@@ -255,24 +255,16 @@ func (h apiHandler) handleGetRoomMessages(w http.ResponseWriter, r *http.Request
 
 	messages, err := h.q.GetRoomMessages(r.Context(), roomID)
 	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			slog.Error("failed to get room messages", "error", err)
-			http.Error(w, "something went wrong", http.StatusInternalServerError)
-			return
-		}
-		
-		messages = make([]pgstore.Message, 0)
+		slog.Error("failed to get room messages", "error", err)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	if len(messages) == 0 {
 		messages = make([]pgstore.Message, 0)
 	}
 
-	type response struct {
-		Messages []pgstore.Message `json:"messages"`
-	}
-
-	h.sendResponse(w, response{Messages: messages})
+	h.sendResponse(w, messages)
 }
 
 func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request) {
