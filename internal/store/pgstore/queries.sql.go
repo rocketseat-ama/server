@@ -53,6 +53,8 @@ SELECT
 FROM messages
 WHERE
     room_id = $1
+ORDER BY
+    answered ASC, reaction_count DESC
 `
 
 func (q *Queries) GetRoomMessages(ctx context.Context, roomID uuid.UUID) ([]Message, error) {

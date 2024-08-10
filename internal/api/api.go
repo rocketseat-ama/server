@@ -42,12 +42,24 @@ func (h apiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 const (
-	MessageKindMessageCreated = "message_created"
+	MessageKindMessageCreated			= "message_created"
+	MessageKindMessageAnswered			= "message_answered"
+	MessageKindMessageReactionIncreased = "message_reaction_increased"
+	MessageKindMessageReactionDecreased = "message_reaction_decreased"
 )
 
 type MessageMessageCreated struct {
 	ID		string	`json:"id"`
 	Message string	`json:"message"`
+}
+
+type MessageMessageAnswered struct {
+	ID		string	`json:"id"`
+}
+
+type MessageMessageReaction struct {
+	ID		string	`json:"id"`
+	Count	int64	`json:"count"`
 }
 
 type Message struct {
@@ -121,7 +133,7 @@ func (h apiHandler) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	c, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		slog.Error("failed to upgrade connection", "error", err)
-		http.Error(w, "failed to upugrade to ws connection", http.StatusBadRequest)
+		http.Error(w, "failed to upgrade to ws connection", http.StatusBadRequest)
 		return
 	}
 
@@ -178,13 +190,13 @@ func (h apiHandler) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 func (h apiHandler) handleGetRooms(w http.ResponseWriter, r *http.Request) {
 	rooms, err := h.q.GetRooms(r.Context())
 	if err != nil {
-		if !errors.Is(err, pgx.ErrNoRows) {
-			slog.Error("failed to get rooms", "error", err)
-			http.Error(w, "something went wrong", http.StatusInternalServerError)
-			return
-		}
-		
-		rooms = []pgstore.Room{}
+		slog.Error("failed to get rooms", "error", err)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if len(rooms) == 0 {
+		rooms = make([]pgstore.Room, 0)
 	}
 
 	type response struct {
@@ -294,6 +306,12 @@ func (h apiHandler) handleGetRoomMessage(w http.ResponseWriter, r *http.Request)
 }
 
 func (h apiHandler) handleReactionToMessage(w http.ResponseWriter, r *http.Request) {
+	roomID, err := h.getUUIDParam(r, "room_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	messageID, err := h.getUUIDParam(r, "message_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -324,9 +342,24 @@ func (h apiHandler) handleReactionToMessage(w http.ResponseWriter, r *http.Reque
 	}
 
 	h.sendResponse(w, response{ReactionCount: reactionCount})
+
+	go h.notifyClients(Message{
+		Kind: MessageKindMessageReactionIncreased,
+		RoomID: roomID.String(),
+		Value: MessageMessageReaction{
+			ID: 	messageID.String(),
+			Count:	reactionCount,
+		},
+	})
 }
 
 func (h apiHandler) handleRemoveReactionFromMessage(w http.ResponseWriter, r *http.Request) {
+	roomID, err := h.getUUIDParam(r, "room_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	messageID, err := h.getUUIDParam(r, "message_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -357,9 +390,24 @@ func (h apiHandler) handleRemoveReactionFromMessage(w http.ResponseWriter, r *ht
 	}
 
 	h.sendResponse(w, response{ReactionCount: reactionCount})
+
+	go h.notifyClients(Message{
+		Kind: MessageKindMessageReactionDecreased,
+		RoomID: roomID.String(),
+		Value: MessageMessageReaction{
+			ID: 	messageID.String(),
+			Count:	reactionCount,
+		},
+	})
 }
 
 func (h apiHandler) handleMarkMessageAsAnswered(w http.ResponseWriter, r *http.Request) {
+	roomID, err := h.getUUIDParam(r, "room_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	messageID, err := h.getUUIDParam(r, "message_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -386,6 +434,14 @@ func (h apiHandler) handleMarkMessageAsAnswered(w http.ResponseWriter, r *http.R
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+
+	go h.notifyClients(Message{
+		Kind: MessageKindMessageAnswered,
+		RoomID: roomID.String(),
+		Value: MessageMessageCreated{
+			ID: messageID.String(),
+		},
+	})
 }
 
 func NewHandler(q *pgstore.Queries) http.Handler {

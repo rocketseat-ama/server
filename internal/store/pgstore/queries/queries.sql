@@ -29,7 +29,9 @@ SELECT
     "id", "room_id", "message", "reaction_count", "answered"
 FROM messages
 WHERE
-    room_id = $1;
+    room_id = $1
+ORDER BY
+    answered ASC, reaction_count DESC;
 
 -- name: InsertMessage :one
 INSERT INTO messages
